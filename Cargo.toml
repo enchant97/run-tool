@@ -1,5 +1,5 @@
 [package]
-name = "run-cli"
+name = "run-tool"
 version = "0.1.0"
 edition = "2021"
 

@@ -11,7 +11,7 @@ mod helpers;
 fn main() {
     let args = Args::parse();
     let run_config: Config =
-        serde_yaml::from_str(&fs::read_to_string(".run.yml").unwrap()).unwrap();
+        serde_yaml::from_str(&fs::read_to_string(".run-tool.yml").unwrap()).unwrap();
     match args.command {
         args::Command::Run {
             config_name,
