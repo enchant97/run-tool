@@ -1,4 +1,4 @@
-use std::{fs, process::Command};
+use std::process::{exit, Command};
 
 use args::Args;
 use clap::Parser;
@@ -10,31 +10,67 @@ mod helpers;
 
 fn main() {
     let args = Args::parse();
-    let run_config: Config =
-        serde_yaml::from_str(&fs::read_to_string(".run-tool.yml").unwrap()).unwrap();
+    let run_config_raw =
+        match helpers::read_with_fallbacks(&[".run-tool.yaml".into(), ".run-tool.yml".into()]) {
+            Some(v) => v,
+            None => {
+                eprintln!("could not read run configuration");
+                exit(1);
+            }
+        };
+    let run_config: Config = match serde_yaml::from_str(&run_config_raw) {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("failed to parse configuration");
+            exit(1);
+        }
+    };
     match args.command {
         args::Command::Run {
             config_name,
             extra_args,
         } => {
-            let run_config = run_config.configurations.get(&config_name).unwrap();
-            let file_envs = helpers::read_env_files(&run_config.env_files()).unwrap();
+            let run_config = match run_config.configurations.get(&config_name) {
+                Some(v) => v,
+                None => {
+                    eprintln!("run configuration not found");
+                    exit(1);
+                }
+            };
+            let file_envs = match helpers::read_env_files(&run_config.env_files()) {
+                Ok(v) => v,
+                Err(_) => {
+                    eprintln!("failed to parse environment files");
+                    exit(1);
+                }
+            };
 
             let mut command = Command::new(&run_config.program);
 
             if let Some(cwd) = &run_config.cwd {
-                command.current_dir(&cwd);
+                command.current_dir(cwd);
             }
 
-            command
+            let mut process = match command
                 .envs(file_envs)
                 .envs(&run_config.env)
                 .args(&run_config.args)
                 .args(&extra_args)
                 .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
+            {
+                Ok(v) => v,
+                Err(err) => {
+                    eprintln!("{}", err);
+                    exit(1);
+                }
+            };
+            exit(
+                process
+                    .wait()
+                    .expect("failed to execute")
+                    .code()
+                    .unwrap_or_default(),
+            );
         }
     }
 }
