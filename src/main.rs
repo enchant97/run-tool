@@ -18,7 +18,7 @@ fn main() {
             extra_args,
         } => {
             let run_config = run_config.configurations.get(&config_name).unwrap();
-            let file_envs = helpers::read_env_files(&run_config.env_file).unwrap();
+            let file_envs = helpers::read_env_files(&run_config.env_files()).unwrap();
 
             let mut command = Command::new(&run_config.program);
 
