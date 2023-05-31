@@ -15,7 +15,6 @@ pub struct RunConfig {
     pub args: Vec<String>,
     #[serde(default)]
     pub env: HashMap<String, String>,
-    #[serde(default)]
     pub env_file: Option<FileOrFiles>,
     pub cwd: Option<PathBuf>,
 }
@@ -34,5 +33,6 @@ impl RunConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub configurations: HashMap<String, RunConfig>,
 }
