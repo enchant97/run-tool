@@ -1,0 +1,7 @@
+configurations:
+  app:
+    program: "cargo"
+    args: ["run", "--"]
+  check:
+    program: "cargo"
+    args: ["clippy"]
