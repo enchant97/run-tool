@@ -2,17 +2,20 @@ use clap::{Parser, Subcommand};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    #[command(about = "Run a config")]
+    /// Run a configuration
+    #[command()]
     Run {
-        #[arg(name = "config name", help = "Name of config to run")]
+        /// Name of configuration to run
+        #[arg(name = "config name")]
         config_name: String,
-        #[arg(name = "args", help = "Extra arguments to pass to app", last = true, allow_hyphen_values = true)]
+        /// Extra arguments to pass to app
+        #[arg(name = "args", last = true, allow_hyphen_values = true)]
         extra_args: Vec<String>,
     },
 }
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = "A tool to aid developers in running their projects")]
+#[command(author, version, about, long_about)]
 pub struct Args {
     #[command(subcommand)]
     pub command: Command,
