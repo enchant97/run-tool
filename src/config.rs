@@ -18,6 +18,10 @@ pub struct RunConfig {
     pub env: HashMap<String, String>,
     pub env_file: Option<FileOrFiles>,
     pub cwd: Option<PathBuf>,
+    #[serde(default)]
+    pub before_hooks: Vec<String>,
+    #[serde(default)]
+    pub after_hooks: Vec<String>,
 }
 
 impl RunConfig {

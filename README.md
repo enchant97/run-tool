@@ -24,6 +24,12 @@ configurations:
       - ".env"
     # ~ optional
     cwd: "api/"
+    # ~ optional
+    before_hooks:
+      - another_config
+    # ~ optional
+    after_hooks:
+      - another_config
 ```
 
 
