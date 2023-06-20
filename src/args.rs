@@ -8,6 +8,9 @@ pub enum Command {
         /// Name of configuration to run
         #[arg(name = "config name")]
         config_name: String,
+        /// Use config from global
+        #[arg(short, long)]
+        global: bool,
         /// Extra arguments to pass to app
         #[arg(name = "args", last = true, allow_hyphen_values = true)]
         extra_args: Vec<String>,

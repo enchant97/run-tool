@@ -1,10 +1,56 @@
 use dotenvy::{from_filename_iter, Error as EnvyError};
 use std::fs;
 use std::path::PathBuf;
+use std::process::exit;
 
-pub fn read_with_fallbacks(paths: &[PathBuf]) -> Option<String> {
+const CONFIG_FOLDER_NAME: &str = "run-tool";
+
+#[derive(Debug)]
+pub struct AppError {
+    pub msg: String,
+    pub exitcode: i32,
+}
+
+impl AppError {
+    pub fn handle(&self) -> ! {
+        eprintln!("{}", self.msg);
+        exit(self.exitcode);
+    }
+}
+
+pub fn get_app_config_path() -> Option<PathBuf> {
+    if cfg!(windows) {
+        match std::env::var("USERPROFILE") {
+            Ok(v) => {
+                let mut v = PathBuf::from(v);
+                v.push(format!(".config/{CONFIG_FOLDER_NAME}"));
+                Some(v)
+            }
+            Err(_) => None,
+        }
+    } else {
+        match std::env::var("XDG_CONFIG_HOME") {
+            Ok(v) => {
+                let mut v = PathBuf::from(v);
+                v.push(CONFIG_FOLDER_NAME);
+                Some(v)
+            }
+            Err(_) => match std::env::var("HOME") {
+                Ok(v) => {
+                    let mut v = PathBuf::from(v);
+                    v.push(format!(".config/{CONFIG_FOLDER_NAME}"));
+                    Some(v)
+                }
+                Err(_) => None,
+            },
+        }
+    }
+}
+
+pub fn read_with_fallbacks(base: &PathBuf, paths: &[PathBuf]) -> Option<String> {
     for path in paths {
-        if let Ok(v) = fs::read_to_string(path) {
+        let full_path: PathBuf = [base, &*path].iter().collect();
+        if let Ok(v) = fs::read_to_string(full_path) {
             return Some(v);
         }
     }

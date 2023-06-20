@@ -1,5 +1,6 @@
 use std::{
     env::current_exe,
+    path::PathBuf,
     process::{exit, Command},
 };
 
@@ -11,33 +12,46 @@ mod args;
 mod config;
 mod helpers;
 
+use helpers::AppError;
+
+// Gets the config, searching in current path.
+fn get_config(base: PathBuf) -> Result<Config, AppError> {
+    match helpers::read_with_fallbacks(&base, &[".run-tool.yaml".into(), ".run-tool.yml".into()]) {
+        Some(v) => match serde_yaml::from_str(&v) {
+            Ok(v) => Ok(v),
+            Err(_) => Err(AppError {
+                msg: format!("failed to parse configuration in '{:?}'", base),
+                exitcode: exitcode::CONFIG,
+            }),
+        },
+        None => Err(AppError {
+            msg: format!("could not read run configuration in '{:?}'", base),
+            exitcode: exitcode::IOERR,
+        }),
+    }
+}
+
 fn main() {
     let args = Args::parse();
-    let run_config_raw =
-        match helpers::read_with_fallbacks(&[".run-tool.yaml".into(), ".run-tool.yml".into()]) {
-            Some(v) => v,
-            None => {
-                eprintln!("could not read run configuration");
-                exit(exitcode::IOERR);
-            }
-        };
-    let run_config: Config = match serde_yaml::from_str(&run_config_raw) {
-        Ok(v) => v,
-        Err(_) => {
-            eprintln!("failed to parse configuration");
-            exit(exitcode::CONFIG);
-        }
-    };
+    let app_config_base = helpers::get_app_config_path().unwrap_or_else(|| {
+        eprintln!("could not locate user home directory");
+        exit(exitcode::CONFIG);
+    });
     match args.command {
         args::Command::Run {
             config_name,
+            global,
             extra_args,
         } => {
+            let selected_config = match global {
+                true => get_config(app_config_base).unwrap_or_else(|e| e.handle()),
+                false => get_config(PathBuf::new()).unwrap_or_else(|e| e.handle()),
+            };
             let app_exe_path = current_exe().unwrap_or_else(|_| {
                 eprintln!("failed to get current executable path");
                 exit(exitcode::OSERR);
             });
-            let run_config = match run_config.configurations.get(&config_name) {
+            let run_config = match selected_config.configurations.get(&config_name) {
                 Some(v) => v,
                 None => {
                     eprintln!("run configuration not found");
