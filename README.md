@@ -23,6 +23,7 @@ configurations:
     env_file:
       - ".env"
     # ~ optional
+    # absolute or relative to config file
     cwd: "api/"
     # ~ optional
     before_hooks:
@@ -31,6 +32,8 @@ configurations:
     after_hooks:
       - another_config
 ```
+
+> You can navigate in child directories and still run the configs, since the app will search parent directories.
 
 ### Global
 If you have some commands that you want to access everywhere, a global config can be used. Below are the paths that will be searched:
@@ -41,6 +44,10 @@ If you have some commands that you want to access everywhere, a global config ca
 - Windows
     1. `%%USERPROFILE%%/.config/run-tool/`
 
+### Tips
+- Add an alias in your shell, I use `alias rt='run-tool run'`
+- You can name your config either: `.run-tool.yaml` or `.run-tool.yml`
+
 
 ## Install
 Currently the only way to install is using Cargo:
@@ -50,6 +57,12 @@ cargo install --git https://github.com/enchant97/run-tool.git
 ```
 
 > Add `--tag vx.x.x` to install a specific version
+
+
+## Goals
+- Fast
+- Understandable configuration
+- Cross-Platform
 
 
 ## License
