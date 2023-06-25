@@ -1,6 +1,5 @@
 use std::{
-    env::{self, current_exe, set_current_dir},
-    fs,
+    env, fs,
     path::PathBuf,
     process::{exit, Command},
 };
@@ -82,13 +81,13 @@ fn main() {
                 exit(exitcode::SOFTWARE)
             });
             if config_path_parent != lauched_from_dir {
-                set_current_dir(config_path_parent).unwrap_or_else(|_| {
+                env::set_current_dir(config_path_parent).unwrap_or_else(|_| {
                     eprintln!("failed to change directory");
                     exit(exitcode::NOINPUT)
                 });
             }
 
-            let app_exe_path = current_exe().unwrap_or_else(|_| {
+            let app_exe_path = env::current_exe().unwrap_or_else(|_| {
                 eprintln!("failed to get current executable path");
                 exit(exitcode::OSERR);
             });
