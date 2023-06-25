@@ -1,5 +1,4 @@
 use dotenvy::{from_filename_iter, Error as EnvyError};
-use std::fs;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -47,14 +46,22 @@ pub fn get_app_config_path() -> Option<PathBuf> {
     }
 }
 
-pub fn read_with_fallbacks(base: &PathBuf, paths: &[PathBuf]) -> Option<String> {
-    for path in paths {
-        let full_path: PathBuf = [base, &*path].iter().collect();
-        if let Ok(v) = fs::read_to_string(full_path) {
-            return Some(v);
+pub fn find_config_with_fallbacks(base: &PathBuf, names: &[PathBuf]) -> Option<PathBuf> {
+    for name in names {
+        let full_path: PathBuf = [base, name].iter().collect();
+        if full_path.is_file() {
+            return Some(full_path);
         }
     }
     None
+}
+
+pub fn find_config_with_fallbacks_recursive(base: &PathBuf, names: &[PathBuf]) -> Option<PathBuf> {
+    if let Some(v) = find_config_with_fallbacks(base, names) {
+        return Some(v);
+    }
+    base.parent()
+        .and_then(|base| find_config_with_fallbacks_recursive(&base.to_owned(), names))
 }
 
 pub fn read_env_files(paths: &[PathBuf]) -> Result<Vec<(String, String)>, EnvyError> {
