@@ -1,21 +1,10 @@
 use dotenvy::{from_filename_iter, Error as EnvyError};
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::exit;
 
 const CONFIG_FOLDER_NAME: &str = "run-tool";
 
-#[derive(Debug)]
-pub struct AppError {
-    pub msg: String,
-    pub exitcode: i32,
-}
-
-impl AppError {
-    pub fn handle(&self) -> ! {
-        eprintln!("{}", self.msg);
-        exit(self.exitcode);
-    }
-}
+pub type EnvVars = HashMap<String, String>;
 
 pub fn get_app_config_path() -> Option<PathBuf> {
     if cfg!(windows) {
@@ -64,8 +53,8 @@ pub fn find_config_with_fallbacks_recursive(base: &PathBuf, names: &[PathBuf]) -
         .and_then(|base| find_config_with_fallbacks_recursive(&base.to_owned(), names))
 }
 
-pub fn read_env_files(paths: &[PathBuf]) -> Result<Vec<(String, String)>, EnvyError> {
-    let mut variables = Vec::<(String, String)>::new();
+pub fn read_env_files(paths: &[PathBuf]) -> Result<EnvVars, EnvyError> {
+    let mut variables = EnvVars::new();
     for file_path in paths {
         let v = match from_filename_iter(file_path) {
             Err(err) => return Err(err),

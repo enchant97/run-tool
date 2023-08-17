@@ -1,25 +1,24 @@
-use std::{
-    env, fs,
-    path::PathBuf,
-    process::{exit, Command},
-};
+use std::{env, fs, path::PathBuf, process::exit, vec};
 
 use args::Args;
 use clap::Parser;
-use config::Config;
+use config::{Config, RunCheck, RunCheckConfig};
 
 mod args;
 mod config;
+mod errors;
 mod helpers;
+mod runner;
 
-use helpers::AppError;
+use errors::{AppError, AppErrorResult};
+use runner::ProcessRunner;
 
 // Gets the config, searching from current path.
 fn get_config(
     base: &PathBuf,
     names: &[PathBuf],
     search: bool,
-) -> Result<(PathBuf, Config), AppError> {
+) -> AppErrorResult<(PathBuf, Config)> {
     let found_path = match search {
         true => helpers::find_config_with_fallbacks_recursive(base, names),
         false => helpers::find_config_with_fallbacks(base, names),
@@ -50,6 +49,48 @@ fn get_config(
         msg: format!("failed to find config, searched in '{}'", base.display()),
         exitcode: exitcode::NOINPUT,
     })
+}
+
+fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a RunCheckConfig>) -> bool {
+    let checks = checks.map(|check| match &check.when {
+        RunCheck::ExecOk(fields) => {
+            exitcode::is_success(
+                ProcessRunner {
+                    program: fields.program.clone(),
+                    args: fields.args.clone(),
+                    // TODO include vars
+                    vars: Default::default(),
+                    // TODO include cwd
+                    cwd: None,
+                }
+                .run_interactive()
+                .unwrap_or_else(|err| err.handle()),
+            ) != check.invert
+        }
+        RunCheck::ExecErr(fields) => {
+            exitcode::is_error(
+                ProcessRunner {
+                    program: fields.program.clone(),
+                    args: fields.args.clone(),
+                    // TODO include vars
+                    vars: Default::default(),
+                    // TODO include cwd
+                    cwd: None,
+                }
+                .run_interactive()
+                .unwrap_or_else(|err| err.handle()),
+            ) != check.invert
+        }
+        RunCheck::PathExists { path } => path.exists() != check.invert,
+        RunCheck::PathIsFile { path } => path.is_file() != check.invert,
+        RunCheck::PathIsDir { path } => path.is_dir() != check.invert,
+    });
+    for ok in checks {
+        if !ok {
+            return false;
+        }
+    }
+    true
 }
 
 fn main() {
@@ -98,7 +139,14 @@ fn main() {
                     exit(exitcode::USAGE);
                 }
             };
-            let file_envs = match helpers::read_env_files(&run_config.env_files()) {
+            let file_envs = match helpers::read_env_files(
+                &run_config
+                    .exec
+                    .env_file
+                    .as_ref()
+                    .map(|v| Into::<Vec<PathBuf>>::into(v.clone()))
+                    .unwrap_or_default(),
+            ) {
                 Ok(v) => v,
                 Err(_) => {
                     eprintln!("failed to parse environment files");
@@ -106,21 +154,25 @@ fn main() {
                 }
             };
 
+            if !check_if_run_needed(run_config.run_when.iter()) {
+                println!("skipping '{}'", config_name);
+                exit(exitcode::OK);
+            }
+
             let run_hook = |name: &str| {
-                let process = Command::new(&app_exe_path)
-                    .args(vec!["run", name])
-                    .spawn()
-                    .unwrap_or_else(|err| {
-                        eprintln!("failed to run '{}': {}", name, err);
-                        exit(exitcode::SOFTWARE);
-                    })
-                    .wait()
-                    .unwrap_or_else(|_| {
-                        eprintln!("failed to execute");
-                        exit(exitcode::OSERR);
-                    });
-                if !process.success() {
-                    exit(process.code().unwrap_or_default())
+                let status = ProcessRunner {
+                    program: app_exe_path.to_str().unwrap().to_owned(),
+                    args: vec![String::from("run"), String::from(name)],
+                    vars: Default::default(),
+                    cwd: None,
+                }
+                .run_interactive()
+                .unwrap_or_else(|err| {
+                    eprintln!("hook '{}' encountered an error: '{}'", name, err.msg);
+                    exit(exitcode::SOFTWARE);
+                });
+                if exitcode::is_error(status) {
+                    exit(status)
                 }
             };
 
@@ -128,29 +180,21 @@ fn main() {
                 run_hook(before);
             }
 
-            let mut command = Command::new(&run_config.program);
+            let mut args = run_config.exec.args.clone();
+            args.extend(extra_args);
+            let mut vars = file_envs.clone();
+            vars.extend(run_config.exec.env.clone());
 
-            if let Some(cwd) = &run_config.cwd {
-                command.current_dir(cwd);
+            let status = ProcessRunner {
+                program: run_config.exec.program.clone(),
+                args,
+                vars,
+                cwd: run_config.exec.cwd.clone(),
             }
-
-            let process = command
-                .envs(file_envs)
-                .envs(&run_config.env)
-                .args(&run_config.args)
-                .args(&extra_args)
-                .spawn()
-                .unwrap_or_else(|err| {
-                    eprintln!("{}", err);
-                    exit(exitcode::SOFTWARE);
-                })
-                .wait()
-                .unwrap_or_else(|_| {
-                    eprintln!("failed to execute");
-                    exit(exitcode::OSERR);
-                });
-            if !process.success() {
-                exit(process.code().unwrap_or_default())
+            .run_interactive()
+            .unwrap_or_else(|err| err.handle());
+            if status != exitcode::OK {
+                exit(status);
             }
 
             for after in &run_config.after_hooks {
