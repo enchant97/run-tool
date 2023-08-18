@@ -2,7 +2,7 @@ use std::{env, fs, path::PathBuf, process::exit, vec};
 
 use args::Args;
 use clap::Parser;
-use config::{Config, RunCheck, RunCheckConfig};
+use config::{Config, TargetCheck, TargetCheckConfig};
 
 mod args;
 mod config;
@@ -51,9 +51,9 @@ fn get_config(
     })
 }
 
-fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a RunCheckConfig>) -> bool {
+fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) -> bool {
     let checks = checks.map(|check| match &check.when {
-        RunCheck::ExecOk(fields) => {
+        TargetCheck::ExecOk(fields) => {
             exitcode::is_success(
                 ProcessRunner {
                     program: fields.program.clone(),
@@ -67,7 +67,7 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a RunCheckConfig>) -> 
                 .unwrap_or_else(|err| err.handle()),
             ) != check.invert
         }
-        RunCheck::ExecErr(fields) => {
+        TargetCheck::ExecErr(fields) => {
             exitcode::is_error(
                 ProcessRunner {
                     program: fields.program.clone(),
@@ -81,9 +81,9 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a RunCheckConfig>) -> 
                 .unwrap_or_else(|err| err.handle()),
             ) != check.invert
         }
-        RunCheck::PathExists { path } => path.exists() != check.invert,
-        RunCheck::PathIsFile { path } => path.is_file() != check.invert,
-        RunCheck::PathIsDir { path } => path.is_dir() != check.invert,
+        TargetCheck::PathExists { path } => path.exists() != check.invert,
+        TargetCheck::PathIsFile { path } => path.is_file() != check.invert,
+        TargetCheck::PathIsDir { path } => path.is_dir() != check.invert,
     });
     for ok in checks {
         if !ok {
@@ -106,7 +106,7 @@ fn main() {
     });
     match args.command {
         args::Command::Run {
-            config_name,
+            target_name,
             global,
             extra_args,
         } => {
@@ -132,7 +132,7 @@ fn main() {
                 eprintln!("failed to get current executable path");
                 exit(exitcode::OSERR);
             });
-            let run_config = match selected_config.configurations.get(&config_name) {
+            let target_config = match selected_config.targets.get(&target_name) {
                 Some(v) => v,
                 None => {
                     eprintln!("run configuration not found");
@@ -140,7 +140,7 @@ fn main() {
                 }
             };
             let file_envs = match helpers::read_env_files(
-                &run_config
+                &target_config
                     .exec
                     .env_file
                     .as_ref()
@@ -154,8 +154,8 @@ fn main() {
                 }
             };
 
-            if !check_if_run_needed(run_config.run_when.iter()) {
-                println!("skipping '{}'", config_name);
+            if !check_if_run_needed(target_config.run_when.iter()) {
+                println!("skipping '{}'", target_name);
                 exit(exitcode::OK);
             }
 
@@ -176,20 +176,20 @@ fn main() {
                 }
             };
 
-            for before in &run_config.before_hooks {
+            for before in &target_config.before_hooks {
                 run_hook(before);
             }
 
-            let mut args = run_config.exec.args.clone();
+            let mut args = target_config.exec.args.clone();
             args.extend(extra_args);
             let mut vars = file_envs.clone();
-            vars.extend(run_config.exec.env.clone());
+            vars.extend(target_config.exec.env.clone());
 
             let status = ProcessRunner {
-                program: run_config.exec.program.clone(),
+                program: target_config.exec.program.clone(),
                 args,
                 vars,
-                cwd: run_config.exec.cwd.clone(),
+                cwd: target_config.exec.cwd.clone(),
             }
             .run_interactive()
             .unwrap_or_else(|err| err.handle());
@@ -197,7 +197,7 @@ fn main() {
                 exit(status);
             }
 
-            for after in &run_config.after_hooks {
+            for after in &target_config.after_hooks {
                 run_hook(after);
             }
         }

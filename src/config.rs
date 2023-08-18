@@ -33,7 +33,7 @@ pub struct ExecConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "when", content = "fields")]
-pub enum RunCheck {
+pub enum TargetCheck {
     #[serde(rename = "exec_ok")]
     ExecOk(ExecConfig),
     #[serde(rename = "exec_err")]
@@ -47,19 +47,19 @@ pub enum RunCheck {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RunCheckConfig {
+pub struct TargetCheckConfig {
     #[serde(flatten)]
-    pub when: RunCheck,
+    pub when: TargetCheck,
     #[serde(default)]
     pub invert: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RunConfig {
+pub struct TargetConfig {
     #[serde(flatten)]
     pub exec: ExecConfig,
     #[serde(default)]
-    pub run_when: Vec<RunCheckConfig>,
+    pub run_when: Vec<TargetCheckConfig>,
     #[serde(default)]
     pub before_hooks: Vec<String>,
     #[serde(default)]
@@ -69,5 +69,5 @@ pub struct RunConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
-    pub configurations: HashMap<String, RunConfig>,
+    pub targets: HashMap<String, TargetConfig>,
 }

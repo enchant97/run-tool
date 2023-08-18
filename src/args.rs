@@ -5,9 +5,9 @@ pub enum Command {
     /// Run a configuration
     #[command()]
     Run {
-        /// Name of configuration to run
-        #[arg(name = "config name")]
-        config_name: String,
+        /// Name of target to run
+        #[arg(name = "target name")]
+        target_name: String,
         /// Use config from global
         #[arg(short, long)]
         global: bool,

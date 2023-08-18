@@ -1,4 +1,4 @@
-configurations:
+targets:
   app:
     program: "cargo"
     args: ["run", "--"]
