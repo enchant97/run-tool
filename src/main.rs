@@ -137,13 +137,17 @@ fn main() {
     }
 
     match args.command {
-        args::Command::Config {minimal} => {
+        args::Command::Config { minimal } => {
             println!("file:");
             println!("  {}", config_path.display());
             println!("targets:");
             for target in selected_config.targets {
                 if minimal {
-                    println!("  {}: {}", target.0, target.1.description.unwrap_or_default());
+                    println!(
+                        "  {}: {}",
+                        target.0,
+                        target.1.description.unwrap_or_default()
+                    );
                     continue;
                 }
                 println!("  {}:", target.0);
@@ -157,9 +161,9 @@ fn main() {
                     target.1.exec.program,
                     target.1.exec.args.join(" ")
                 );
-                    if let Some(cwd) = target.1.exec.cwd {
-                        println!("    cwd:");
-                        println!("      {}", cwd);
+                if let Some(cwd) = target.1.exec.cwd {
+                    println!("    cwd:");
+                    println!("      {}", cwd);
                 }
                 if target.1.before_hooks.len() != 0 {
                     println!("    before hooks:");
