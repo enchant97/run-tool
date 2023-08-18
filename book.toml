@@ -1,0 +1,12 @@
+[book]
+authors = ["Leo Spratt"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "Run Tool"
+description = "A tool to aid developers in running their projects."
+
+[output.html]
+git-repository-url = "https://github.com/enchant97/run-tool"
+git-repository-icon = "fa-github"
+edit-url-template = "https://github.com/enchant97/run-tool/edit/main/{path}"
