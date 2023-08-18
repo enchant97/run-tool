@@ -36,6 +36,9 @@ pub fn get_app_config_path() -> Option<PathBuf> {
 }
 
 pub fn find_config_with_fallbacks(base: &PathBuf, names: &[PathBuf]) -> Option<PathBuf> {
+    if !base.is_dir() {
+        return None;
+    }
     for name in names {
         let full_path: PathBuf = [base, name].iter().collect();
         if full_path.is_file() {

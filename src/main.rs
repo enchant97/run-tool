@@ -94,7 +94,6 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) 
 }
 
 fn main() {
-    let config_file_names = [".run-tool.yaml".into(), ".run-tool.yml".into()];
     let lauched_from_dir = env::current_dir().unwrap_or_else(|_| {
         eprintln!("failed to get current working directory");
         exit(exitcode::OSERR);
@@ -104,16 +103,23 @@ fn main() {
         eprintln!("could not locate user home directory");
         exit(exitcode::NOINPUT);
     });
+
+    let config_file_names = match args.custom_filename {
+        None => vec![".run-tool.yaml".into(), ".run-tool.yml".into()],
+        Some(custom_name) => vec![custom_name],
+    };
+
     match args.command {
         args::Command::Run {
             target_name,
-            global,
             extra_args,
         } => {
-            let (config_path, selected_config) = match global {
-                true => get_config(&app_config_base, &config_file_names, false)
+            let (config_path, selected_config) = match (args.use_global_config, args.custom_path) {
+                (true, _) => get_config(&app_config_base, &config_file_names, false)
                     .unwrap_or_else(|e| e.handle()),
-                false => get_config(&lauched_from_dir, &config_file_names, true)
+                (false, Some(custom_path)) => get_config(&custom_path, &config_file_names, true)
+                    .unwrap_or_else(|e| e.handle()),
+                (false, None) => get_config(&lauched_from_dir, &config_file_names, true)
                     .unwrap_or_else(|e| e.handle()),
             };
 
