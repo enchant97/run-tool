@@ -94,11 +94,16 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) 
 }
 
 fn main() {
+    let args = Args::parse();
+
     let lauched_from_dir = env::current_dir().unwrap_or_else(|_| {
         eprintln!("failed to get current working directory");
         exit(exitcode::OSERR);
     });
-    let args = Args::parse();
+    let app_exe_path = env::current_exe().unwrap_or_else(|_| {
+        eprintln!("failed to get current executable path");
+        exit(exitcode::OSERR);
+    });
     let app_config_base = helpers::get_app_config_path().unwrap_or_else(|| {
         eprintln!("could not locate user home directory");
         exit(exitcode::NOINPUT);
@@ -109,35 +114,33 @@ fn main() {
         Some(custom_name) => vec![custom_name],
     };
 
+    let (config_path, selected_config) =
+        match (args.use_global_config, args.custom_path) {
+            (true, _) => get_config(&app_config_base, &config_file_names, false)
+                .unwrap_or_else(|e| e.handle()),
+            (false, Some(custom_path)) => {
+                get_config(&custom_path, &config_file_names, true).unwrap_or_else(|e| e.handle())
+            }
+            (false, None) => get_config(&lauched_from_dir, &config_file_names, true)
+                .unwrap_or_else(|e| e.handle()),
+        };
+
+    let config_path_parent = config_path.parent().unwrap_or_else(|| {
+        eprintln!("config path has no parent");
+        exit(exitcode::SOFTWARE)
+    });
+    if config_path_parent != lauched_from_dir {
+        env::set_current_dir(config_path_parent).unwrap_or_else(|_| {
+            eprintln!("failed to change directory");
+            exit(exitcode::NOINPUT)
+        });
+    }
+
     match args.command {
         args::Command::Run {
             target_name,
             extra_args,
         } => {
-            let (config_path, selected_config) = match (args.use_global_config, args.custom_path) {
-                (true, _) => get_config(&app_config_base, &config_file_names, false)
-                    .unwrap_or_else(|e| e.handle()),
-                (false, Some(custom_path)) => get_config(&custom_path, &config_file_names, true)
-                    .unwrap_or_else(|e| e.handle()),
-                (false, None) => get_config(&lauched_from_dir, &config_file_names, true)
-                    .unwrap_or_else(|e| e.handle()),
-            };
-
-            let config_path_parent = config_path.parent().unwrap_or_else(|| {
-                eprintln!("config path has no parent");
-                exit(exitcode::SOFTWARE)
-            });
-            if config_path_parent != lauched_from_dir {
-                env::set_current_dir(config_path_parent).unwrap_or_else(|_| {
-                    eprintln!("failed to change directory");
-                    exit(exitcode::NOINPUT)
-                });
-            }
-
-            let app_exe_path = env::current_exe().unwrap_or_else(|_| {
-                eprintln!("failed to get current executable path");
-                exit(exitcode::OSERR);
-            });
             let target_config = match selected_config.targets.get(&target_name) {
                 Some(v) => v,
                 None => {
