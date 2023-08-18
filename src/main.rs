@@ -137,6 +137,42 @@ fn main() {
     }
 
     match args.command {
+        args::Command::Config {minimal} => {
+            println!("file:");
+            println!("  {}", config_path.display());
+            println!("targets:");
+            for target in selected_config.targets {
+                if minimal {
+                    println!("  {}: {}", target.0, target.1.description.unwrap_or_default());
+                    continue;
+                }
+                println!("  {}:", target.0);
+                if let Some(description) = target.1.description {
+                    println!("    description:");
+                    println!("      {}", description);
+                }
+                println!("    exec:");
+                println!(
+                    "      {} {}",
+                    target.1.exec.program,
+                    target.1.exec.args.join(" ")
+                );
+                    if let Some(cwd) = target.1.exec.cwd {
+                        println!("    cwd:");
+                        println!("      {}", cwd);
+                }
+                if target.1.before_hooks.len() != 0 {
+                    println!("    before hooks:");
+                    println!("      {}", target.1.before_hooks.join(", "));
+                }
+                if target.1.after_hooks.len() != 0 {
+                    println!("    after hooks:");
+                    println!("      {}", target.1.after_hooks.join(", "));
+                }
+                println!("    run checks:");
+                println!("      {}", target.1.run_when.len());
+            }
+        }
         args::Command::Run {
             target_name,
             extra_args,

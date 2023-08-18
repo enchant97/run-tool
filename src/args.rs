@@ -14,6 +14,12 @@ fn path_only_filename(p: &str) -> Result<PathBuf, String> {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Show the loaded configuration
+    Config {
+        /// Reduce the displayed information
+        #[arg(short, long)]
+        minimal: bool,
+    },
     /// Run a configuration
     #[command()]
     Run {

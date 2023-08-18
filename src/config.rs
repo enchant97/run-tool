@@ -56,6 +56,7 @@ pub struct TargetCheckConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TargetConfig {
+    pub description: Option<String>,
     #[serde(flatten)]
     pub exec: ExecConfig,
     #[serde(default)]
