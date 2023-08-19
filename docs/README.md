@@ -1,5 +1,5 @@
 # Run Tool
-A multi-purpose tool to aid developers in executing common tasks. Aiming to suite modern requirements, whilst not replicating make.
+A multi-purpose tool to aid developers in executing common tasks. Aiming to suit modern requirements, whilst not replicating make.
 
 > Whilst fairly stable, it is still in development and features may change
 
