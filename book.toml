@@ -10,5 +10,4 @@ description = "A multi-purpose tool to aid developers in executing common tasks.
 git-repository-url = "https://github.com/enchant97/run-tool"
 git-repository-icon = "fa-github"
 edit-url-template = "https://github.com/enchant97/run-tool/edit/main/{path}"
-site-url = "/run-tool/"
-cname = "docs.enchantedcode.co.uk"
+cname = "run-tool.docs.enchantedcode.co.uk"
