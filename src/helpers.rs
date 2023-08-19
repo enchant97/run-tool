@@ -1,10 +1,35 @@
 use dotenvy::from_filename_iter;
 use std::collections::HashMap;
+use std::env;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 const CONFIG_FOLDER_NAME: &str = "run-tool";
 
+static APP_BIN_PATH: OnceLock<PathBuf> = OnceLock::new();
+
 pub type EnvVars = HashMap<String, String>;
+
+pub fn get_app_binary_path() -> &'static PathBuf {
+    APP_BIN_PATH.get_or_init(|| env::current_exe().expect("failed to get current binary path"))
+}
+
+pub fn get_config_file_names(custom_filename: Option<PathBuf>) -> Vec<PathBuf> {
+    match (env::var("RUN_TOOL_FILENAME").ok(), custom_filename) {
+        (None, None) => {
+            log::debug!("setting config filenames from internal");
+            vec![".run-tool.yaml".into(), ".run-tool.yml".into()]
+        }
+        (Some(v), None) => {
+            log::debug!("setting config filename from environment variable");
+            vec![v.into()]
+        }
+        (_, Some(custom_name)) => {
+            log::debug!("setting config filename from argument");
+            vec![custom_name]
+        }
+    }
+}
 
 pub fn get_app_config_path() -> Option<PathBuf> {
     if cfg!(windows) {

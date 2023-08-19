@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf, process::exit, vec};
+use std::{env, fs, path::PathBuf, process::exit};
 
 use args::Args;
 use clap::Parser;
@@ -11,6 +11,7 @@ mod helpers;
 mod runner;
 
 use errors::{AppError, AppErrorResult};
+use helpers::get_app_binary_path;
 use runner::ProcessRunner;
 
 // Gets the config, searching from current path.
@@ -79,6 +80,113 @@ fn check_if_run_needed<'a>(
     Ok(true)
 }
 
+fn command_config(config_path: PathBuf, config: Config, minimal: bool) -> AppErrorResult<()> {
+    println!("file:");
+    println!("  {}", config_path.display());
+    println!("targets:");
+    for target in config.targets {
+        if minimal {
+            println!(
+                "  {}: {}",
+                target.0,
+                target.1.description.unwrap_or_default()
+            );
+            continue;
+        }
+        println!("  {}:", target.0);
+        if let Some(description) = target.1.description {
+            println!("    description:");
+            println!("      {}", description);
+        }
+        println!("    exec:");
+        println!(
+            "      {} {}",
+            target.1.exec.program,
+            target.1.exec.args.join(" ")
+        );
+        if let Some(cwd) = target.1.exec.cwd {
+            println!("    cwd:");
+            println!("      {}", cwd);
+        }
+        if !target.1.before_hooks.is_empty() {
+            println!("    before hooks:");
+            println!("      {}", target.1.before_hooks.join(", "));
+        }
+        if !target.1.after_hooks.is_empty() {
+            println!("    after hooks:");
+            println!("      {}", target.1.after_hooks.join(", "));
+        }
+        println!("    run checks:");
+        println!("      {}", target.1.run_when.len());
+    }
+    Ok(())
+}
+
+fn command_run(config: Config, target_name: &str, extra_args: Vec<String>) -> AppErrorResult<()> {
+    let target_config = config.targets.get(target_name).ok_or_else(|| AppError {
+        msg: "run configuration not found".to_owned(),
+        exitcode: exitcode::USAGE,
+    })?;
+
+    let environment_variables = &target_config.exec.all_vars().map_err(|err| AppError {
+        msg: format!("failed to parse environment files: '{}'", err),
+        exitcode: exitcode::DATAERR,
+    })?;
+
+    if !check_if_run_needed(target_config.run_when.iter())? {
+        return Err(AppError {
+            msg: format!("skipping '{}'", target_name),
+            exitcode: exitcode::OK,
+        });
+    }
+
+    let run_hook = |name: &str| -> AppErrorResult<()> {
+        let status = ProcessRunner {
+            program: get_app_binary_path().to_str().unwrap().to_owned(),
+            args: vec![String::from("run"), String::from(name)],
+            vars: Default::default(),
+            cwd: None,
+        }
+        .run_interactive()
+        .map_err(|err| AppError {
+            msg: format!("hook '{}' encountered an error: '{}'", name, err.msg),
+            exitcode: exitcode::SOFTWARE,
+        })?;
+        if exitcode::is_error(status) {
+            Err(AppError {
+                msg: "stop hook run due to error".to_owned(),
+                exitcode: status,
+            })
+        } else {
+            Ok(())
+        }
+    };
+
+    for before in &target_config.before_hooks {
+        run_hook(before)?;
+    }
+
+    let mut args = target_config.exec.args.clone();
+    args.extend(extra_args);
+
+    let status = ProcessRunner {
+        program: target_config.exec.program.clone(),
+        args,
+        vars: environment_variables.clone(),
+        cwd: target_config.exec.cwd.clone(),
+    }
+    .run_interactive()
+    .unwrap_or_else(|err| err.handle());
+    if status != exitcode::OK {
+        exit(status);
+    }
+
+    for after in &target_config.after_hooks {
+        run_hook(after)?;
+    }
+    Ok(())
+}
+
 fn main() {
     let args = Args::parse();
     let log_level = match args.verbose_logging {
@@ -91,29 +199,12 @@ fn main() {
         eprintln!("failed to get current working directory");
         exit(exitcode::OSERR);
     });
-    let app_exe_path = env::current_exe().unwrap_or_else(|_| {
-        eprintln!("failed to get current executable path");
-        exit(exitcode::OSERR);
-    });
     let app_config_base = helpers::get_app_config_path().unwrap_or_else(|| {
         eprintln!("could not locate user home directory");
         exit(exitcode::NOINPUT);
     });
 
-    let config_file_names = match (env::var("RUN_TOOL_FILENAME").ok(), args.custom_filename) {
-        (None, None) => {
-            log::debug!("setting config filenames from internal");
-            vec![".run-tool.yaml".into(), ".run-tool.yml".into()]
-        }
-        (Some(v), None) => {
-            log::debug!("setting config filename from environment variable");
-            vec![v.into()]
-        }
-        (_, Some(custom_name)) => {
-            log::debug!("setting config filename from argument");
-            vec![custom_name]
-        }
-    };
+    let config_file_names = helpers::get_config_file_names(args.custom_filename);
 
     let (config_path, selected_config) =
         match (args.use_global_config, args.custom_path) {
@@ -138,109 +229,11 @@ fn main() {
     }
 
     match args.command {
-        args::Command::Config { minimal } => {
-            println!("file:");
-            println!("  {}", config_path.display());
-            println!("targets:");
-            for target in selected_config.targets {
-                if minimal {
-                    println!(
-                        "  {}: {}",
-                        target.0,
-                        target.1.description.unwrap_or_default()
-                    );
-                    continue;
-                }
-                println!("  {}:", target.0);
-                if let Some(description) = target.1.description {
-                    println!("    description:");
-                    println!("      {}", description);
-                }
-                println!("    exec:");
-                println!(
-                    "      {} {}",
-                    target.1.exec.program,
-                    target.1.exec.args.join(" ")
-                );
-                if let Some(cwd) = target.1.exec.cwd {
-                    println!("    cwd:");
-                    println!("      {}", cwd);
-                }
-                if target.1.before_hooks.len() != 0 {
-                    println!("    before hooks:");
-                    println!("      {}", target.1.before_hooks.join(", "));
-                }
-                if target.1.after_hooks.len() != 0 {
-                    println!("    after hooks:");
-                    println!("      {}", target.1.after_hooks.join(", "));
-                }
-                println!("    run checks:");
-                println!("      {}", target.1.run_when.len());
-            }
-        }
+        args::Command::Config { minimal } => command_config(config_path, selected_config, minimal),
         args::Command::Run {
             target_name,
             extra_args,
-        } => {
-            let target_config = match selected_config.targets.get(&target_name) {
-                Some(v) => v,
-                None => {
-                    eprintln!("run configuration not found");
-                    exit(exitcode::USAGE);
-                }
-            };
-
-            let environment_variables = &target_config.exec.all_vars().unwrap_or_else(|err| {
-                eprintln!("failed to parse environment files: '{}'", err);
-                exit(exitcode::DATAERR);
-            });
-
-            if !check_if_run_needed(target_config.run_when.iter()).unwrap_or_else(|err| {
-                err.handle();
-            }) {
-                println!("skipping '{}'", target_name);
-                exit(exitcode::OK);
-            }
-
-            let run_hook = |name: &str| {
-                let status = ProcessRunner {
-                    program: app_exe_path.to_str().unwrap().to_owned(),
-                    args: vec![String::from("run"), String::from(name)],
-                    vars: Default::default(),
-                    cwd: None,
-                }
-                .run_interactive()
-                .unwrap_or_else(|err| {
-                    eprintln!("hook '{}' encountered an error: '{}'", name, err.msg);
-                    exit(exitcode::SOFTWARE);
-                });
-                if exitcode::is_error(status) {
-                    exit(status)
-                }
-            };
-
-            for before in &target_config.before_hooks {
-                run_hook(before);
-            }
-
-            let mut args = target_config.exec.args.clone();
-            args.extend(extra_args);
-
-            let status = ProcessRunner {
-                program: target_config.exec.program.clone(),
-                args,
-                vars: environment_variables.clone(),
-                cwd: target_config.exec.cwd.clone(),
-            }
-            .run_interactive()
-            .unwrap_or_else(|err| err.handle());
-            if status != exitcode::OK {
-                exit(status);
-            }
-
-            for after in &target_config.after_hooks {
-                run_hook(after);
-            }
-        }
+        } => command_run(selected_config, &target_name, extra_args),
     }
+    .unwrap_or_else(|err| err.handle());
 }
