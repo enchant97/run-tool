@@ -48,8 +48,6 @@ impl ExecConfig {
 pub enum TargetCheck {
     #[serde(rename = "exec_ok")]
     ExecOk(ExecConfig),
-    #[serde(rename = "exec_err")]
-    ExecErr(ExecConfig),
     #[serde(rename = "path_exists")]
     PathExists { path: PathBuf },
     #[serde(rename = "path_is_file")]

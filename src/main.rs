@@ -68,21 +68,6 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) 
                 .unwrap_or_else(|err| err.handle()),
             ) != check.invert
         }
-        TargetCheck::ExecErr(fields) => {
-            exitcode::is_error(
-                ProcessRunner {
-                    program: fields.program.clone(),
-                    args: fields.args.clone(),
-                    vars: fields.all_vars().unwrap_or_else(|err| {
-                        eprintln!("failed to parse environment files: '{}'", err);
-                        exit(exitcode::DATAERR);
-                    }),
-                    cwd: fields.cwd.clone(),
-                }
-                .run_interactive()
-                .unwrap_or_else(|err| err.handle()),
-            ) != check.invert
-        }
         TargetCheck::PathExists { path } => path.exists() != check.invert,
         TargetCheck::PathIsFile { path } => path.is_file() != check.invert,
         TargetCheck::PathIsDir { path } => path.is_dir() != check.invert,
