@@ -14,5 +14,7 @@ edition = "2021"
 clap = { version = "4.3.0", features = ["derive"] }
 dotenvy = "0.15.7"
 exitcode = "1.1.2"
+log = "0.4.20"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_yaml = "0.9.21"
+simple_logger = { version = "4.2.0", default-features = false, features = ["colors"] }

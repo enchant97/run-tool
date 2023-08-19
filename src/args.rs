@@ -35,6 +35,9 @@ pub enum Command {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
 pub struct Args {
+    /// Whether to log verbosely
+    #[arg(short = 'v', long = "verbose")]
+    pub verbose_logging: bool,
     /// Use user's global configuration
     #[arg(short = 'g', long = "global")]
     pub use_global_config: bool,

@@ -81,6 +81,11 @@ fn check_if_run_needed<'a>(
 
 fn main() {
     let args = Args::parse();
+    let log_level = match args.verbose_logging {
+        true => log::Level::Debug,
+        false => log::Level::Info,
+    };
+    simple_logger::init_with_level(log_level).expect("failed to setup logging");
 
     let lauched_from_dir = env::current_dir().unwrap_or_else(|_| {
         eprintln!("failed to get current working directory");
@@ -95,9 +100,19 @@ fn main() {
         exit(exitcode::NOINPUT);
     });
 
-    let config_file_names = match args.custom_filename {
-        None => vec![".run-tool.yaml".into(), ".run-tool.yml".into()],
-        Some(custom_name) => vec![custom_name],
+    let config_file_names = match (env::var("RUN_TOOL_FILENAME").ok(), args.custom_filename) {
+        (None, None) => {
+            log::debug!("setting config filenames from internal");
+            vec![".run-tool.yaml".into(), ".run-tool.yml".into()]
+        }
+        (Some(v), None) => {
+            log::debug!("setting config filename from environment variable");
+            vec![v.into()]
+        }
+        (_, Some(custom_name)) => {
+            log::debug!("setting config filename from argument");
+            vec![custom_name]
+        }
     };
 
     let (config_path, selected_config) =
