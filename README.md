@@ -1,52 +1,38 @@
 # Run Tool
-A tool to aid developers in running their projects.
+A multi-purpose tool to aid developers in executing common tasks. Aiming to suite modern requirements, whilst not replicating make.
+
+> Whilst fairly stable, it is still in development and features may change
 
 
-## Usage
-At your project root; create a `.run-tool.yml` file.
+## Features
+- Configuration uses YAML
+- Per project configuration file (if added at root of project)
+- Supporting a global configuration (per user)
+- Customisable targets
+    - Arguments
+    - Environment variables
+    - Settable current working directory
+    - Hooks (before and after target run)
+    - Conditional runs (only run target when conditions are met)
 
-Follow this format:
 
-```yaml
-configurations:
-  run_name:
-    program: "<executable name>"
-    # ~ optional
-    args:
-      - "arg1"
-    # optional
-    env:
-      LOG_LEVEL: "debug"
-    # ~ optional
-    env_file: ".env"
-    # or
-    env_file:
-      - ".env"
-    # ~ optional
-    # absolute or relative to config file
-    cwd: "api/"
-    # ~ optional
-    before_hooks:
-      - another_config
-    # ~ optional
-    after_hooks:
-      - another_config
-```
+## Use Case
+- Running a project
+- Building a project
+- Run tests
+- One-off commands, e.g. downloading test data
 
-> You can navigate in child directories and still run the configs, since the app will search parent directories.
 
-### Global
-If you have some commands that you want to access everywhere, a global config can be used. Below are the paths that will be searched:
+## Goals
+- Fast and easy to use
+- Human readable configuration
+- Cross-platform (for core functionality)
+- Support mono-repos
+- Support use in CI/CD
 
-- Linux & Unix
-    1. `$XDG_CONFIG_HOME/run-tool/`
-    2. `$HOME/.config/run-tool/`
-- Windows
-    1. `%%USERPROFILE%%/.config/run-tool/`
 
-### Tips
-- Add an alias in your shell, I use `alias rt='run-tool run'`
-- You can name your config either: `.run-tool.yaml` or `.run-tool.yml`
+## Non-Goals
+- Be a complete replacement to make
 
 
 ## Install
@@ -57,12 +43,6 @@ cargo install --git https://github.com/enchant97/run-tool.git
 ```
 
 > Add `--tag vx.x.x` to install a specific version
-
-
-## Goals
-- Fast
-- Understandable configuration
-- Cross-Platform
 
 
 ## License
