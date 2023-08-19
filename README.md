@@ -39,10 +39,8 @@ A multi-purpose tool to aid developers in executing common tasks. Aiming to suit
 Currently the only way to install is using Cargo:
 
 ```
-cargo install --git https://github.com/enchant97/run-tool.git
+cargo install run-tool
 ```
-
-> Add `--tag vx.x.x` to install a specific version
 
 
 ## License
