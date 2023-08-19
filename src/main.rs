@@ -58,10 +58,11 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) 
                 ProcessRunner {
                     program: fields.program.clone(),
                     args: fields.args.clone(),
-                    // TODO include vars
-                    vars: Default::default(),
-                    // TODO include cwd
-                    cwd: None,
+                    vars: fields.all_vars().unwrap_or_else(|err| {
+                        eprintln!("failed to parse environment files: '{}'", err);
+                        exit(exitcode::DATAERR);
+                    }),
+                    cwd: fields.cwd.clone(),
                 }
                 .run_interactive()
                 .unwrap_or_else(|err| err.handle()),
@@ -72,10 +73,11 @@ fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) 
                 ProcessRunner {
                     program: fields.program.clone(),
                     args: fields.args.clone(),
-                    // TODO include vars
-                    vars: Default::default(),
-                    // TODO include cwd
-                    cwd: None,
+                    vars: fields.all_vars().unwrap_or_else(|err| {
+                        eprintln!("failed to parse environment files: '{}'", err);
+                        exit(exitcode::DATAERR);
+                    }),
+                    cwd: fields.cwd.clone(),
                 }
                 .run_interactive()
                 .unwrap_or_else(|err| err.handle()),
@@ -188,20 +190,11 @@ fn main() {
                     exit(exitcode::USAGE);
                 }
             };
-            let file_envs = match helpers::read_env_files(
-                &target_config
-                    .exec
-                    .env_file
-                    .as_ref()
-                    .map(|v| Into::<Vec<PathBuf>>::into(v.clone()))
-                    .unwrap_or_default(),
-            ) {
-                Ok(v) => v,
-                Err(_) => {
-                    eprintln!("failed to parse environment files");
-                    exit(exitcode::DATAERR);
-                }
-            };
+
+            let environment_variables = &target_config.exec.all_vars().unwrap_or_else(|err| {
+                eprintln!("failed to parse environment files: '{}'", err);
+                exit(exitcode::DATAERR);
+            });
 
             if !check_if_run_needed(target_config.run_when.iter()) {
                 println!("skipping '{}'", target_name);
@@ -231,13 +224,11 @@ fn main() {
 
             let mut args = target_config.exec.args.clone();
             args.extend(extra_args);
-            let mut vars = file_envs.clone();
-            vars.extend(target_config.exec.env.clone());
 
             let status = ProcessRunner {
                 program: target_config.exec.program.clone(),
                 args,
-                vars,
+                vars: environment_variables.clone(),
                 cwd: target_config.exec.cwd.clone(),
             }
             .run_interactive()

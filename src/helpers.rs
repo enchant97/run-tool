@@ -1,4 +1,4 @@
-use dotenvy::{from_filename_iter, Error as EnvyError};
+use dotenvy::from_filename_iter;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -56,11 +56,11 @@ pub fn find_config_with_fallbacks_recursive(base: &PathBuf, names: &[PathBuf]) -
         .and_then(|base| find_config_with_fallbacks_recursive(&base.to_owned(), names))
 }
 
-pub fn read_env_files(paths: &[PathBuf]) -> Result<EnvVars, EnvyError> {
+pub fn read_env_files(paths: &[PathBuf]) -> Result<EnvVars, String> {
     let mut variables = EnvVars::new();
     for file_path in paths {
         let v = match from_filename_iter(file_path) {
-            Err(err) => return Err(err),
+            Err(err) => return Err(err.to_string()),
             Ok(v) => v.into_iter().filter_map(|item| item.ok()),
         };
         variables.extend(v);

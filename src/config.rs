@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::helpers::EnvVars;
+use crate::helpers::{self, EnvVars};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -29,6 +29,18 @@ pub struct ExecConfig {
     pub env: EnvVars,
     pub env_file: Option<FileOrFiles>,
     pub cwd: Option<String>,
+}
+
+impl ExecConfig {
+    pub fn all_vars(&self) -> Result<EnvVars, String> {
+        let mut vars = self.env.clone();
+        if let Some(env_file) = &self.env_file {
+            vars.extend(helpers::read_env_files(&Into::<Vec<PathBuf>>::into(
+                env_file.clone(),
+            ))?);
+        }
+        Ok(vars)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
