@@ -51,33 +51,32 @@ fn get_config(
     })
 }
 
-fn check_if_run_needed<'a>(checks: impl Iterator<Item = &'a TargetCheckConfig>) -> bool {
+fn check_if_run_needed<'a>(
+    checks: impl Iterator<Item = &'a TargetCheckConfig>,
+) -> AppErrorResult<bool> {
     let checks = checks.map(|check| match &check.when {
-        TargetCheck::ExecOk(fields) => {
-            exitcode::is_success(
-                ProcessRunner {
-                    program: fields.program.clone(),
-                    args: fields.args.clone(),
-                    vars: fields.all_vars().unwrap_or_else(|err| {
-                        eprintln!("failed to parse environment files: '{}'", err);
-                        exit(exitcode::DATAERR);
-                    }),
-                    cwd: fields.cwd.clone(),
-                }
-                .run_interactive()
-                .unwrap_or_else(|err| err.handle()),
-            ) != check.invert
-        }
-        TargetCheck::PathExists { path } => path.exists() != check.invert,
-        TargetCheck::PathIsFile { path } => path.is_file() != check.invert,
-        TargetCheck::PathIsDir { path } => path.is_dir() != check.invert,
+        TargetCheck::ExecOk(fields) => Ok(exitcode::is_success(
+            ProcessRunner {
+                program: fields.program.clone(),
+                args: fields.args.clone(),
+                vars: fields.all_vars().map_err(|err| AppError {
+                    msg: format!("failed to parse environment files: '{}'", err),
+                    exitcode: exitcode::DATAERR,
+                })?,
+                cwd: fields.cwd.clone(),
+            }
+            .run_interactive()?,
+        ) != check.invert),
+        TargetCheck::PathExists { path } => Ok(path.exists() != check.invert),
+        TargetCheck::PathIsFile { path } => Ok(path.is_file() != check.invert),
+        TargetCheck::PathIsDir { path } => Ok(path.is_dir() != check.invert),
     });
     for ok in checks {
-        if !ok {
-            return false;
+        if !ok? {
+            return Ok(false);
         }
     }
-    true
+    Ok(true)
 }
 
 fn main() {
@@ -181,7 +180,9 @@ fn main() {
                 exit(exitcode::DATAERR);
             });
 
-            if !check_if_run_needed(target_config.run_when.iter()) {
+            if !check_if_run_needed(target_config.run_when.iter()).unwrap_or_else(|err| {
+                err.handle();
+            }) {
                 println!("skipping '{}'", target_name);
                 exit(exitcode::OK);
             }
