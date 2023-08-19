@@ -2,12 +2,12 @@
 name = "run-tool"
 version = "0.3.0"
 license = "Apache-2.0"
-description = "A tool to aid developers in running their projects."
+description = "A multi-purpose tool to aid developers in executing common tasks."
 readme = "README.md"
 homepage = "https://github.com/enchant97/run-tool"
 repository = "https://github.com/enchant97/run-tool"
 keywords = ["cli", "automation", "devloper"]
-categories = ["command-line-utilities"]
+categories = ["command-line-utilities", "development-tools"]
 edition = "2021"
 
 [dependencies]
