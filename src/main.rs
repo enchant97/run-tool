@@ -99,14 +99,12 @@ fn command_config(config_path: PathBuf, config: Config, minimal: bool) -> AppErr
             println!("      {}", description);
         }
         println!("    exec:");
-        println!(
-            "      {} {}",
-            target.1.exec.program,
-            target.1.exec.args.join(" ")
-        );
-        if let Some(cwd) = target.1.exec.cwd {
-            println!("    cwd:");
-            println!("      {}", cwd);
+        if let Some(exec) = target.1.exec {
+            println!("      {} {}", exec.program, exec.args.join(" "));
+            if let Some(cwd) = exec.cwd {
+                println!("    cwd:");
+                println!("      {}", cwd);
+            }
         }
         if !target.1.before_hooks.is_empty() {
             println!("    before hooks:");
@@ -128,10 +126,13 @@ fn command_run(config: Config, target_name: &str, extra_args: Vec<String>) -> Ap
         exitcode: exitcode::USAGE,
     })?;
 
-    let environment_variables = &target_config.exec.all_vars().map_err(|err| AppError {
-        msg: format!("failed to parse environment files: '{}'", err),
-        exitcode: exitcode::DATAERR,
-    })?;
+    let environment_variables = match &target_config.exec {
+        Some(exec) => exec.all_vars().map_err(|err| AppError {
+            msg: format!("failed to parse environment files: '{}'", err),
+            exitcode: exitcode::DATAERR,
+        })?,
+        None => Default::default(),
+    };
 
     if !check_if_run_needed(target_config.run_when.iter())? {
         return Err(AppError {
@@ -166,19 +167,23 @@ fn command_run(config: Config, target_name: &str, extra_args: Vec<String>) -> Ap
         run_hook(before)?;
     }
 
-    let mut args = target_config.exec.args.clone();
-    args.extend(extra_args);
+    if let Some(exec) = &target_config.exec {
+        let mut args = exec.args.clone();
+        args.extend(extra_args);
 
-    let status = ProcessRunner {
-        program: target_config.exec.program.clone(),
-        args,
-        vars: environment_variables.clone(),
-        cwd: target_config.exec.cwd.clone(),
-    }
-    .run_interactive()
-    .unwrap_or_else(|err| err.handle());
-    if status != exitcode::OK {
-        exit(status);
+        let status = ProcessRunner {
+            program: exec.program.clone(),
+            args,
+            vars: environment_variables.clone(),
+            cwd: exec.cwd.clone(),
+        }
+        .run_interactive()
+        .unwrap_or_else(|err| err.handle());
+        if status != exitcode::OK {
+            exit(status);
+        }
+    } else {
+        log::info!("no program specified in target '{target_name}', skipping");
     }
 
     for after in &target_config.after_hooks {

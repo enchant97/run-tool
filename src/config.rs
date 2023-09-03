@@ -68,7 +68,7 @@ pub struct TargetCheckConfig {
 pub struct TargetConfig {
     pub description: Option<String>,
     #[serde(flatten)]
-    pub exec: ExecConfig,
+    pub exec: Option<ExecConfig>,
     #[serde(default)]
     pub run_when: Vec<TargetCheckConfig>,
     #[serde(default)]
