@@ -238,7 +238,19 @@ fn main() {
         args::Command::Run {
             target_name,
             extra_args,
-        } => command_run(selected_config, &target_name, extra_args),
+        } => match &target_name {
+            None => {
+                println!("possible targets:");
+                for (name, _) in selected_config.targets {
+                    println!("  {}", name);
+                }
+                Err(AppError {
+                    msg: String::from("target not specified"),
+                    exitcode: exitcode::USAGE,
+                })
+            }
+            Some(target_name) => command_run(selected_config, &target_name, extra_args),
+        },
     }
     .unwrap_or_else(|err| err.handle());
 }

@@ -25,7 +25,7 @@ pub enum Command {
     Run {
         /// Name of target to run
         #[arg(name = "target name")]
-        target_name: String,
+        target_name: Option<String>,
         /// Extra arguments to pass to app
         #[arg(name = "args", last = true, allow_hyphen_values = true)]
         extra_args: Vec<String>,
