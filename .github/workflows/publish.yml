@@ -9,13 +9,7 @@ jobs:
   publish-to-cratesio:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: actions/checkout@v4
       - name: Publish to crates.io
         run: cargo publish
         env:
