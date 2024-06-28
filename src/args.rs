@@ -26,6 +26,9 @@ pub enum Command {
         /// Name of target to run
         #[arg(name = "target name")]
         target_name: Option<String>,
+        /// Watch provided paths and re-launch command on change
+        #[arg(short, long)]
+        watch: bool,
         /// Extra arguments to pass to app
         #[arg(name = "args", last = true, allow_hyphen_values = true)]
         extra_args: Vec<String>,

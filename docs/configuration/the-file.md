@@ -44,6 +44,10 @@ targets:
           # - optional, dictionary
           # - extra fields to give to check (depends on specified check)
           fields: {}
+    # - optional, watch configuration
+    watch:
+      # - array of paths to watch
+      paths: []
 ```
 
 ### Checks
@@ -117,6 +121,15 @@ Here is an example for building a project in a mono-repo.
 #
 
 targets:
+  dev-build:
+    program: cargo
+    args:
+      - build
+    cwd: backend/
+    watch:
+      paths:
+        - backend/
+
   clean-build:
     program: cargo
     args:

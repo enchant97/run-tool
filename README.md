@@ -15,6 +15,7 @@ Docs can be found here: [run-tool.docs.enchantedcode.co.uk](https://run-tool.doc
     - Settable current working directory
     - Hooks (before and after target run)
     - Conditional runs (only run target when conditions are met)
+- Watch for file/folder changes
 
 
 ## Use Case
@@ -45,6 +46,6 @@ cargo install run-tool
 
 
 ## License
-This project is Copyright (c) 2023 Leo Spratt, licence shown below:
+This project is Copyright (c) 2024 Leo Spratt, licence shown below:
 
     Apache-2.0. Full license found in `LICENSE.txt`

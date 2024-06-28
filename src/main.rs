@@ -1,4 +1,14 @@
-use std::{env, fs, path::PathBuf, process::exit};
+use std::{
+    env, fs,
+    path::PathBuf,
+    process::exit,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread::sleep,
+    time::Duration,
+};
 
 use args::Args;
 use clap::Parser;
@@ -12,6 +22,7 @@ mod runner;
 
 use errors::{AppError, AppErrorResult};
 use helpers::get_app_binary_path;
+use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
 use runner::ProcessRunner;
 
 // Gets the config, searching from current path.
@@ -120,7 +131,12 @@ fn command_config(config_path: PathBuf, config: Config, minimal: bool) -> AppErr
     Ok(())
 }
 
-fn command_run(config: Config, target_name: &str, extra_args: Vec<String>) -> AppErrorResult<()> {
+fn command_run(
+    config: Config,
+    target_name: &str,
+    extra_args: Vec<String>,
+    watch: bool,
+) -> AppErrorResult<()> {
     let target_config = config.targets.get(target_name).ok_or_else(|| AppError {
         msg: "run configuration not found".to_owned(),
         exitcode: exitcode::USAGE,
@@ -163,32 +179,81 @@ fn command_run(config: Config, target_name: &str, extra_args: Vec<String>) -> Ap
         }
     };
 
-    for before in &target_config.before_hooks {
-        run_hook(before)?;
-    }
+    // TODO maybe polling can be improved to instead use `std::sync::Condvar` or something else?
+    // Since this is expensive!
+    let should_restart = Arc::new(AtomicBool::new(true));
+    let should_cancel = Arc::new(AtomicBool::new(false));
 
-    if let Some(exec) = &target_config.exec {
-        let mut args = exec.args.clone();
-        args.extend(extra_args);
-
-        let status = ProcessRunner {
-            program: exec.program.clone(),
-            args,
-            vars: environment_variables.clone(),
-            cwd: exec.cwd.clone(),
+    let mut debounced_watcher = new_debouncer(Duration::from_secs(2), {
+        let should_restart = should_restart.clone();
+        let should_cancel = should_cancel.clone();
+        move |res| {
+            if let Ok(_) = res {
+                should_restart.store(true, Ordering::Relaxed);
+            }
+            should_cancel.store(true, Ordering::Relaxed);
         }
-        .run_interactive()
-        .unwrap_or_else(|err| err.handle());
-        if status != exitcode::OK {
-            exit(status);
+    })
+    .map_err(|e| AppError {
+        msg: format!(
+            "an issue occurred while trying to construct the file watcher: '{:?}'",
+            e,
+        ),
+        exitcode: exitcode::SOFTWARE,
+    })?;
+    if watch {
+        for p in target_config.watch.paths.iter() {
+            debounced_watcher
+                .watcher()
+                .watch(p, RecursiveMode::Recursive)
+                .map_err(|e| AppError {
+                    msg: format!(
+                        "an issue occurred while trying to add a path to the watcher: '{:?}'",
+                        e
+                    ),
+                    exitcode: exitcode::SOFTWARE,
+                })?;
         }
-    } else {
-        log::info!("no program specified in target '{target_name}', skipping");
     }
 
-    for after in &target_config.after_hooks {
-        run_hook(after)?;
+    loop {
+        while should_restart.load(Ordering::Relaxed) {
+            should_restart.store(false, Ordering::Relaxed);
+            should_cancel.store(false, Ordering::Relaxed);
+
+            for before in &target_config.before_hooks {
+                run_hook(before)?;
+            }
+
+            if let Some(exec) = &target_config.exec {
+                let mut args = exec.args.clone();
+                args.extend(extra_args.clone());
+
+                let status = ProcessRunner {
+                    program: exec.program.clone(),
+                    args,
+                    vars: environment_variables.clone(),
+                    cwd: exec.cwd.clone(),
+                }
+                .run_interactive_cancelable(&should_cancel)
+                .unwrap_or_else(|err| err.handle());
+                if status != exitcode::OK {
+                    exit(status);
+                }
+            } else {
+                log::info!("no program specified in target '{target_name}', skipping");
+            }
+
+            for after in &target_config.after_hooks {
+                run_hook(after)?;
+            }
+        }
+        if watch && should_cancel.load(Ordering::Relaxed) || !watch {
+            break;
+        }
+        sleep(Duration::from_millis(1));
     }
+
     Ok(())
 }
 
@@ -236,6 +301,7 @@ fn main() {
     match args.command {
         args::Command::Config { minimal } => command_config(config_path, selected_config, minimal),
         args::Command::Run {
+            watch,
             target_name,
             extra_args,
         } => match &target_name {
@@ -249,7 +315,7 @@ fn main() {
                     exitcode: exitcode::USAGE,
                 })
             }
-            Some(target_name) => command_run(selected_config, &target_name, extra_args),
+            Some(target_name) => command_run(selected_config, &target_name, extra_args, watch),
         },
     }
     .unwrap_or_else(|err| err.handle());

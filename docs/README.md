@@ -14,7 +14,7 @@ A multi-purpose tool to aid developers in executing common tasks. Aiming to suit
     - Settable current working directory
     - Hooks (before and after target run)
     - Conditional runs (only run target when conditions are met)
-
+- Watch for file/folder changes
 
 ## Use Case
 - Running a project

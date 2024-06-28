@@ -64,6 +64,11 @@ pub struct TargetCheckConfig {
     pub invert: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct WatchConfig {
+    pub paths: Vec<PathBuf>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TargetConfig {
     pub description: Option<String>,
@@ -75,6 +80,8 @@ pub struct TargetConfig {
     pub before_hooks: Vec<String>,
     #[serde(default)]
     pub after_hooks: Vec<String>,
+    #[serde(default)]
+    pub watch: WatchConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

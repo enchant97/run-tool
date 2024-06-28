@@ -8,8 +8,13 @@ Whilst the application has in-build help (by running `run-tool help`), this sect
 run-tool run <target name>
 ```
 
-You can also provide extra arguments to the targets executable appending to any specified in the config.
+Or add the ability to watch for file/folder changes:
 
+```
+run-tool run -w <target name>
+```
+
+You can also provide extra arguments to the targets executable appending to any specified in the config.
 
 ```
 run-tool run <target name> -- --release
