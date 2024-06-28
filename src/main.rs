@@ -38,7 +38,7 @@ fn get_config(
 
     if let Some(found_path) = found_path {
         if let Ok(contents) = fs::read_to_string(&found_path) {
-            if let Ok(v) = serde_yaml::from_str(&contents) {
+            if let Ok(v) = serde_yml::from_str(&contents) {
                 return Ok((found_path, v));
             }
             return Err(AppError {
